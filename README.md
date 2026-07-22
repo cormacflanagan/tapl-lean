@@ -29,13 +29,15 @@ subdirectory**. Each chapter directory contains:
 | [`Chapter15`](Chapter15/) | 15. Subtyping | subtype relation, subsumption, inversion, progress & preservation |
 | [`Chapter16`](Chapter16/) | 16. Metatheory of Subtyping | algorithmic subtyping, refl/trans admissibility, equivalence |
 | [`Chapter17`](Chapter17/) | 17. An ML Implementation of Subtyping | executable subtype checker, decidability of subtyping |
+| [`Chapter19`](Chapter19/) | 19. Featherweight Java | class tables, inheritance, substitution lemma, preservation & cast-free progress |
 | [`Chapter20`](Chapter20/) | 20. Recursive Types | iso-recursive types (fold/unfold), metatheory |
+| [`Chapter22`](Chapter22/) | 22. Type Reconstruction | constraint typing, unification, most general unifiers |
 | [`Chapter23`](Chapter23/) | 23. Universal Types | System F, progress & preservation, Church encodings typed |
 | [`Chapter24`](Chapter24/) | 24. Existential Types | pack/unpack, abstract data types, metatheory |
 
 Chapters of the book that are pure prose, case studies, or
-ML-implementation interludes without new formal content (1, 2, 4, 18, 19,
-21, 22, 25–32) are not formalized here; where a chapter's content is best
+ML-implementation interludes without new formal content (1, 2, 4, 18, 21,
+25–32) are not formalized here; where a chapter's content is best
 expressed differently in Lean (e.g. chapter 5's named terms vs.
 chapter 6's de Bruijn indices), the chapter README explains the
 deviation.
