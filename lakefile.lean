@@ -63,3 +63,6 @@ package tapl
 
 @[default_target] lean_lib «MiniRustC» where
   globs := #[.submodules `MiniRustC]
+
+@[default_target] lean_lib «MoverRust» where
+  globs := #[.submodules `MoverRust]
