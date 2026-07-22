@@ -30,3 +30,6 @@ package tapl
 
 @[default_target] lean_lib «Chapter15» where
   globs := #[.submodules `Chapter15]
+
+@[default_target] lean_lib «Chapter20» where
+  globs := #[.submodules `Chapter20]
