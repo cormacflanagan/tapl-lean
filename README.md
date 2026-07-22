@@ -23,15 +23,22 @@ subdirectory**. Each chapter directory contains:
 | [`Chapter09`](Chapter09/) | 9. Simply Typed Lambda-Calculus | STLC: weakening, substitution lemma, progress & preservation |
 | [`Chapter10`](Chapter10/) | 10. An ML Implementation of Simple Types | executable typechecker, soundness & completeness |
 | [`Chapter11`](Chapter11/) | 11. Simple Extensions | unit, let, pairs, sums — full metatheory |
+| [`Chapter12`](Chapter12/) | 12. Normalization | logical relations (Tait's method), every well-typed term halts |
+| [`Chapter13`](Chapter13/) | 13. References | stores, store typings, preservation with store-typing extension |
+| [`Chapter14`](Chapter14/) | 14. Exceptions | error/try, error propagation, three-way progress |
 | [`Chapter15`](Chapter15/) | 15. Subtyping | subtype relation, subsumption, inversion, progress & preservation |
+| [`Chapter16`](Chapter16/) | 16. Metatheory of Subtyping | algorithmic subtyping, refl/trans admissibility, equivalence |
+| [`Chapter17`](Chapter17/) | 17. An ML Implementation of Subtyping | executable subtype checker, decidability of subtyping |
 | [`Chapter20`](Chapter20/) | 20. Recursive Types | iso-recursive types (fold/unfold), metatheory |
 | [`Chapter23`](Chapter23/) | 23. Universal Types | System F, progress & preservation, Church encodings typed |
+| [`Chapter24`](Chapter24/) | 24. Existential Types | pack/unpack, abstract data types, metatheory |
 
-Chapters of the book that are pure prose or ML-implementation interludes
-without new formal content (1, 2, 4, 12, 14, 16–19, 21, 22, 24–32) are not
-formalized here; where a chapter's content is best expressed differently in
-Lean (e.g. chapter 5's named terms vs. chapter 6's de Bruijn indices), the
-chapter README explains the deviation.
+Chapters of the book that are pure prose, case studies, or
+ML-implementation interludes without new formal content (1, 2, 4, 18, 19,
+21, 22, 25–32) are not formalized here; where a chapter's content is best
+expressed differently in Lean (e.g. chapter 5's named terms vs.
+chapter 6's de Bruijn indices), the chapter README explains the
+deviation.
 
 ## Conventions
 
