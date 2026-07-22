@@ -60,3 +60,6 @@ package tapl
 
 @[default_target] lean_lib «Chapter22» where
   globs := #[.submodules `Chapter22]
+
+@[default_target] lean_lib «MiniRustC» where
+  globs := #[.submodules `MiniRustC]

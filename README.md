@@ -42,6 +42,17 @@ expressed differently in Lean (e.g. chapter 5's named terms vs.
 chapter 6's de Bruijn indices), the chapter README explains the
 deviation.
 
+## Beyond the book: MiniRustC
+
+[`MiniRustC/`](MiniRustC/) is a **verified compiler in miniature**,
+applying the book's techniques to the "verified Rust compiler"
+architecture: a MiniRust-flavored source language (`let`/`let mut`
+locals, `while`), a static mutability/scope checker with a proved
+soundness theorem (immutable locals never change), a stack-machine
+target, a compiler between them written in Lean, and the **semantic
+preservation theorem** — whatever the source semantics computes, the
+compiled code computes — with an end-to-end kernel-checked example.
+
 ## Conventions
 
 - **De Bruijn indices** are used for binders throughout (introduced in the
