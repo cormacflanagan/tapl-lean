@@ -26,13 +26,17 @@
   ▸ `istep_diamond`      — Lemma 10 (Diamond): two steps from a common
                            store, one post-commit, close a diamond.
 
-  **What remains for the full Theorem 4.**  On top of these commuting
-  lemmas the paper's Appendix B.1 builds: Lemma 9 (Post-Commit
-  Termination — needs a progress argument for well-typed post-commit
-  code), and the global trace induction proving `Π →* Π'  ⇒  (Π,Π') ∈
-  Post*·Pre*` (claim (1)), from which the going-wrong statement follows.
-  Those two are a substantial further development; the reusable
-  mover-commutation core they rest on is what is mechanized here.
+  Lemma 9 (Post-Commit Termination) is proved separately in
+  [`Postcommit.lean`](Postcommit.lean).
+
+  **What remains for the full Theorem 4.**  With Lemmas 7–10 in hand, the
+  paper's Appendix B.1 assembles the theorem by a global trace induction
+  proving `Π →* Π'  ⇒  (Π,Π') ∈ Post*·Pre*` (claim (1)) — a bubble-sort
+  of the preemptive trace into cooperative blocks using these four
+  commutations as the swap rules — followed by claim (2), which discharges
+  the last incomplete block with Lemma 9.  That trace-combinatorial
+  assembly is the remaining step; every lemma it rests on is mechanized
+  (Lemmas 7–10 here, Lemma 9 in `Postcommit.lean`).
 -/
 import MoverRust.Reduction
 

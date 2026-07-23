@@ -47,6 +47,7 @@ rely assumption applied only at `yield`s.
 | [`Preservation.lean`](Preservation.lean) | **Preservation** (Thm 5), *verified-states-are-not-wrong* (Thm 6), and **cooperative soundness** |
 | [`Reduction.lean`](Reduction.lean) | multi-step **Simulation** (Thm 3), and the action-level commuting lemmas derived from validity |
 | [`Theorem4.lean`](Theorem4.lean) | the **step trichotomy** and the pool-level **commuting lemmas** (Lemmas 7, 8, 10) — the technical core of the Reduction Theorem |
+| [`Postcommit.lean`](Postcommit.lean) | **Lemma 9** (Post-Commit Termination): a committed, call-free thread runs to a park (progress + preservation on a structural metric) |
 | [`Examples.lean`](Examples.lean) | the counter/lock library: `add` **satisfies its spec**, plus the mover-spec **validity mechanism** |
 | [`Parser.lean`](Parser.lean) | a recursive-descent parser from Rust-flavored source to the verified AST |
 
@@ -185,13 +186,29 @@ store-independent silent step. The action–action cases invoke the
 `Valid` conditions; the silent cases commute because they do not touch
 the store.
 
-**What remains for the full theorem.**  On top of these commuting lemmas
-the paper builds Lemma 9 (Post-Commit Termination — a progress argument
-for well-typed post-commit code) and the global trace induction proving
-`Π →* Π' ⇒ (Π,Π') ∈ Post*·Pre*`, from which the going-wrong statement —
-and hence full preemptive soundness via `cooperative_soundness` —
-follows. That assembly is a substantial further development; the reusable
-mover-commutation core it rests on is mechanized here.
+**Lemma 9 (Post-Commit Termination)** is mechanized in
+[`Postcommit.lean`](Postcommit.lean): a committed thread (post-commit
+phase `N`), running call-free code, always runs to a park — proved by
+progress + preservation on a structural size metric that each step
+strictly decreases. Loops cannot appear in post-commit (the [M-while]
+rule forbids it), which is what makes the metric bounded.
+
+```lean
+theorem post_terminates (hval : Valid M) (hD : DeclsOK D M) :
+    ∀ n s, sizeS s ≤ n → ∀ σ P Q e, Judg D M R G s P Q e →
+      Effect.N.seq e ≠ .E → CallFree s → P t σ₀ σ →
+      ∃ s' σ', Multi (IStepT D.fns M t) (.N, s, σ) (.N, s', σ') ∧ Yielding s'
+```
+
+**What remains for the full theorem.**  With Lemmas 7–10 (commutation)
+and Lemma 9 (post-commit termination) all mechanized, the paper assembles
+Theorem 4 by a global trace induction proving `Π →* Π' ⇒ (Π,Π') ∈
+Post*·Pre*` — a bubble-sort of the preemptive trace into cooperative
+blocks using the four commutations as swap rules — then discharges the
+last incomplete block with Lemma 9. That trace-combinatorial assembly,
+which would connect to full preemptive soundness via
+`cooperative_soundness`, is the remaining step; every lemma it rests on
+is mechanized here.
 
 ## The worked example (`Examples.lean`)
 
