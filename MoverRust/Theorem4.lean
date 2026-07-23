@@ -118,4 +118,45 @@ theorem istep_right_comm {F M} (hval : Valid M) {i j : Tid} (hij : i ≠ j)
     subst hσ1
     exact ⟨σ₂, hstepj, hrepi σ₂⟩
 
+/-! ### Lemma 8 — Left commutativity, at the level of two isteps
+
+If thread `i` takes a non-wrong step from the post-commit phase `N` (a
+left-mover), it commutes to the left of a *preceding* non-wrong step of a
+different thread `j`. -/
+
+theorem istep_left_comm {F M} (hval : Valid M) {i j : Tid} (hij : i ≠ j)
+    {pi si pi' si' pj sj pj' sj' : _} {σ σ₁ σ₂ : Store}
+    (hstepj : istep F M j pj sj σ pj' sj' σ₁) (hj_nw : ¬ IsWrong sj')
+    (hstepi : istep F M i pi si σ₁ pi' si' σ₂) (hpiN : pi = .N) (hi_nw : ¬ IsWrong si') :
+    ∃ σ₃, istep F M i pi si σ pi' si' σ₃ ∧ istep F M j pj sj σ₃ pj' sj' σ₂ := by
+  rcases istep_char hstepi with hai | ⟨hw, _⟩ | ⟨hσ2, _, hrepi⟩
+  · -- i is an action step, a left-mover (post-commit)
+    obtain ⟨Ai, hdeni, hpi, hnei, hrepi⟩ := hai
+    have hMi_leL : M Ai i σ₁ ≤ .L := by
+      apply post_phase_le; rw [← hpiN, ← hpi]; exact hnei
+    have hMi_leN : M Ai i σ₁ ≤ .N := le_trans hMi_leL (by decide)
+    rcases istep_char hstepj with haj | ⟨hw, _⟩ | ⟨hσ1, _, hrepj⟩
+    · -- j is also an action step
+      obtain ⟨Aj, hdenj, hpj, hnej, hrepj⟩ := haj
+      have hMj_leN : M Aj j σ ≤ .N := arg_le_N_of_seq_ne_E pj _ (hpj ▸ hnej)
+      -- validity condition 2 gives the reordered intermediate store
+      obtain ⟨σ₃, hdeni', hdenj'⟩ :=
+        hval.left_commute (fun e => hij e.symm) hMj_leN hdenj hMi_leL hdeni
+      -- condition 3: j's mover does not change i's effect, and vice versa
+      have hMi_eq : M Ai i σ₁ = M Ai i σ := hval.stable_eff (fun e => hij e.symm) hMj_leN hdenj
+      have hMj_eq : M Aj j σ₃ = M Aj j σ := hval.stable_eff hij (hMi_eq ▸ hMi_leN) hdeni'
+      refine ⟨σ₃, ?_, ?_⟩
+      · have := hrepi σ σ₃ hdeni' (by rw [← hMi_eq]; exact hpi ▸ hnei)
+        rwa [← hMi_eq, ← hpi] at this
+      · have := hrepj σ₃ σ₂ hdenj' (by rw [hMj_eq]; exact hpj ▸ hnej)
+        rwa [hMj_eq, ← hpj] at this
+    · exact absurd hw hj_nw
+    · -- j silent: σ₁ = σ; i runs unchanged, then j reproduces
+      subst hσ1
+      exact ⟨σ₂, hstepi, hrepj σ₂⟩
+  · exact absurd hw hi_nw
+  · -- i silent: σ₂ = σ₁; i reproduces from σ, then j runs unchanged
+    subst hσ2
+    exact ⟨σ, hrepi σ, hstepj⟩
+
 end MoverRust
