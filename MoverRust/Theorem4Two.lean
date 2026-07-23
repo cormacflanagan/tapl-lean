@@ -20,14 +20,18 @@
   ▸ `left_comm_01`  / `left_comm_10`  — Lemma 8 at the two-thread level;
   ▸ `cfg_diamond`      — Lemma 10 at the two-thread level;
   ▸ `iterated_diamond` — Lemma 11 (Iterative Diamond), by which thread
-    0's post-commit completion merges into a concurrent thread-1 run.
+    0's post-commit completion merges into a concurrent thread-1 run;
+  ▸ `iterated_rcomm`   — thread 0's whole pre-commit run defers past a
+    following thread-1 run (the multi-step Right Commutativity engine
+    that claim (1) uses to right-commute a Pre block).
 
   With Lemma 9 (`Postcommit.lean`) this is the *complete lemma toolkit*
-  of the paper's Appendix B.1.  What remains for the full theorem is the
-  two trace inductions built on top of them: claim (1), decomposing a
-  preemptive trace as `Post*·Pre*`, and claim (2), completing the last
-  incomplete post-commit block — plus the two-thread typing invariant
-  (`⊢ Π`) that claim (2) carries to invoke Lemma 9.  See the README.
+  of the paper's Appendix B.1, together with its two multi-step engines.
+  What remains for the full theorem is the two trace inductions built on
+  top of them: claim (1), decomposing a preemptive trace as `Post*·Pre*`,
+  and claim (2), completing the last incomplete post-commit block — plus
+  the two-thread typing invariant (`⊢ Π`) that claim (2) carries to
+  invoke Lemma 9.  See the README.
 -/
 import MoverRust.Postcommit
 
@@ -119,7 +123,7 @@ theorem mk_step_true {F M} {c : Cfg} {p' s' σ'}
 theorem right_comm_01 {F M} (hval : Valid M) {c c₁ c₂ : Cfg}
     (h1 : Step F M false c c₁) (hR : c₁.p0 = .R) (hnw0 : ¬ IsWrong c₁.s0)
     (h2 : Step F M true c₁ c₂) (hnw1 : ¬ IsWrong c₂.s1) :
-    ∃ c₃, Step F M true c c₃ ∧ Step F M false c₃ c₂ := by
+    ∃ c₃, Step F M true c c₃ ∧ Step F M false c₃ c₂ ∧ c₃.s1 = c₂.s1 := by
   obtain ⟨p0', s0', hi0, hp0, hs0, hp1e, hs1e⟩ := step_false h1
   obtain ⟨p1', s1', hi1, hp1, hs1, hp0e, hs0e⟩ := step_true h2
   have hpiR : p0' = .R := hp0 ▸ hR
@@ -130,7 +134,7 @@ theorem right_comm_01 {F M} (hval : Valid M) {c c₁ c₂ : Cfg}
   obtain ⟨σ₃, hj', hi'⟩ :=
     istep_right_comm hval (by decide) hi0 hpiR hnwi hi1' hnwj
   refine ⟨{ c with p1 := p1', s1 := s1', st := σ₃ }, mk_step_true hj',
-    p0', s0', by simpa [th, tid] using hi', ?_⟩
+    ⟨p0', s0', by simpa [th, tid] using hi', ?_⟩, hs1.symm⟩
   exact ⟨hp0e.trans hp0, hs0e.trans hs0, hp1, hs1⟩
 
 /-- Right-commutation, `1`-then-`0` (mirror). -/
@@ -266,5 +270,51 @@ theorem iterated_diamond {F M} (hval : Valid M) {c cA : Cfg}
       obtain ⟨c', hT1A, hL0'⟩ := ih c'' hmultiT
       exact ⟨c', hT1A, .head hL0B hL0'⟩
 
+/-! ### Iterated right-commutation (deferring one thread past the other)
+
+A pre-commit (right-mover) step of thread 0 commutes to the right of a
+whole thread-1 run; iterating, thread 0's entire pre-commit run defers
+past thread 1's run.  This is the engine claim (1) uses to right-commute
+a Pre block over the other thread's steps. -/
+
+/-- `RS0` — one pre-commit right-mover step of thread 0 (ending phase
+    `R`, non-wrong). -/
+def RS0 (F : FnTable) (M : MSpec) (a b : Cfg) : Prop :=
+  Step F M false a b ∧ b.p0 = .R ∧ ¬ IsWrong b.s0
+
+/-- One thread-0 right-mover step defers past a whole thread-1 run. -/
+theorem rcomm_0_multi1 {F M} (hval : Valid M) {c₀ cB : Cfg}
+    (h1s : Multi (T1 F M) c₀ cB) :
+    ∀ c, RS0 F M c c₀ → ∃ c', Multi (T1 F M) c c' ∧ RS0 F M c' cB := by
+  induction h1s with
+  | refl => intro c h0; exact ⟨c, .refl _, h0⟩
+  | @head c₀ c₁ cB ht1 _ ih =>
+      intro c h0
+      obtain ⟨hstep0, hR, hnw0⟩ := h0
+      obtain ⟨hstep1, hnw1⟩ := ht1
+      obtain ⟨c₃, hT, hF, hs1eq⟩ := right_comm_01 hval hstep0 hR hnw0 hstep1 hnw1
+      -- the deferred thread-0 step still ends in phase R, non-wrong
+      have hpres := step_true_pres0 hstep1
+      have hR₁ : c₁.p0 = .R := hpres.1.trans hR
+      have hnw₁ : ¬ IsWrong c₁.s0 := hpres.2 ▸ hnw0
+      have hT1' : T1 F M c c₃ := ⟨hT, hs1eq ▸ hnw1⟩
+      obtain ⟨c', hmulti, hRB⟩ := ih c₃ ⟨hF, hR₁, hnw₁⟩
+      exact ⟨c', .head hT1' hmulti, hRB⟩
+
+/-- Thread 0's whole pre-commit run defers past a following thread-1 run:
+    `[0-run][1-run]` reorders to `[1-run][0-run]`. -/
+theorem iterated_rcomm {F M} (hval : Valid M) {c cA : Cfg}
+    (h0s : Multi (RS0 F M) c cA) :
+    ∀ cB, Multi (T1 F M) cA cB →
+      ∃ c', Multi (T1 F M) c c' ∧ Multi (RS0 F M) c' cB := by
+  induction h0s with
+  | refl => intro cB h1s; exact ⟨cB, h1s, .refl _⟩
+  | @head c c₁ cA hr0 _ ih =>
+      intro cB h1s
+      obtain ⟨c'', h1c₁, h0rest⟩ := ih cB h1s
+      obtain ⟨c', h1c, hr0'⟩ := rcomm_0_multi1 hval h1c₁ c hr0
+      exact ⟨c', h1c, .head hr0' h0rest⟩
+
 end Cfg
 end MoverRust
+
