@@ -289,6 +289,15 @@ theorem get?_set_other {α : Type _} {l : List α} {n m : Nat} {a : α}
   rw [List.get?_eq_getElem?, List.get?_eq_getElem?]
   exact List.getElem?_set_ne h
 
+/-- Setting two distinct indices commutes. -/
+theorem set_set_comm {α : Type _} (l : List α) {n m : Nat} (a b : α)
+    (h : n ≠ m) : (l.set n a).set m b = (l.set m b).set n a := by
+  apply List.ext_getElem?
+  intro k
+  rw [List.getElem?_set, List.getElem?_set, List.getElem?_set, List.getElem?_set]
+  by_cases hm : m = k <;> by_cases hn : n = k <;>
+    simp_all [List.length_set]
+
 /-- `Σ` goes wrong if it can reach a wrong state. -/
 def GoesWrong (F : FnTable) (st : State) : Prop :=
   ∃ st', Multi (pstep F) st st' ∧ StateWrong st'

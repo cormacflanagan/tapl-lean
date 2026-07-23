@@ -222,6 +222,13 @@ theorem wloop_unfold_le : ∀ m₁ e₁ m₂ : Effect,
 /-- Fresh threads (phase `R`) with non-error effects are not stuck. -/
 theorem R_seq_ne_E : ∀ e : Effect, e ≠ .E → Effect.R.seq e ≠ .E := by decide
 
+/-- If a step lands in the pre-commit phase `R`, its (non-yield) effect
+    was a right- or both-mover (`⊑ R`). -/
+theorem seq_eq_R_imp_le : ∀ p m : Effect, m ≠ .Y → p.seq m = .R → m ≤ .R := by decide
+
+/-- A non-error composition had a non-error (hence `⊑ N`) argument. -/
+theorem arg_le_N_of_seq_ne_E : ∀ p m : Effect, p.seq m ≠ .E → m ≤ .N := by decide
+
 /-- Composite bound used in the seq-congruence preservation case:
     from `p'; e₁' ⊑ p; e₁` and `e₁; e₂ ⊑ e` conclude
     `p'; (e₁'; e₂) ⊑ p; e`. -/
