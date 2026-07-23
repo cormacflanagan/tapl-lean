@@ -159,4 +159,109 @@ theorem istep_left_comm {F M} (hval : Valid M) {i j : Tid} (hij : i ≠ j)
     subst hσ2
     exact ⟨σ, hrepi σ, hstepj⟩
 
+/-! ### Lifting the commutation lemmas to pool steps
+
+The two-`istep` lemmas above are now packaged as commutations of the
+real pool step relation `ipstepAt` — thread `t` steps the whole pool. -/
+
+/-- Thread `t` takes one instrumented pool step. -/
+def ipstepAt (F : FnTable) (M : MSpec) (t : Tid) (c c' : IState) : Prop :=
+  ∃ p s p' s', c.ths.get? t = some (p, s) ∧
+    istep F M t p s c.store p' s' c'.store ∧ c'.ths = c.ths.set t (p', s')
+
+theorem ipstep_iff {F M c c'} : ipstep F M c c' ↔ ∃ t, ipstepAt F M t c c' := by
+  constructor
+  · rintro ⟨t, hget, hstep⟩; exact ⟨t, _, _, _, _, hget, hstep, rfl⟩
+  · rintro ⟨t, p, s, p', s', hget, hstep, hths⟩
+    obtain ⟨ths, σ⟩ := c; obtain ⟨ths', σ'⟩ := c'
+    simp only at hget hstep hths; subst hths
+    exact .mk t hget hstep
+
+/-- Reading a *different* thread is unaffected by a step at `t`. -/
+theorem ipstepAt_get_other {F M t c c'} (h : ipstepAt F M t c c') {u : Tid}
+    (hu : u ≠ t) : c'.ths.get? u = c.ths.get? u := by
+  obtain ⟨p, s, p', s', _, _, hths⟩ := h
+  rw [hths, get?_set_other (fun e => hu e.symm)]
+
+/-- The phase and statement of thread `t` after its own step. -/
+theorem ipstepAt_get_self {F M t c c'} (h : ipstepAt F M t c c') :
+    ∃ p' s', c'.ths.get? t = some (p', s') ∧
+      ∃ p s, c.ths.get? t = some (p, s) ∧ istep F M t p s c.store p' s' c'.store := by
+  obtain ⟨p, s, p', s', hget, hstep, hths⟩ := h
+  exact ⟨p', s', by rw [hths, get?_set_self (get?_lt hget)], p, s, hget, hstep⟩
+
+/-- **Lemma 7, pool level.**  A right-mover step of thread `i` (ending in
+    phase `R`, non-wrong) commutes to the right of any following
+    non-wrong step of a different thread `j`. -/
+theorem ipstep_right_comm {F M} (hval : Valid M) {c c₁ c₂ : IState} {i j : Tid}
+    (hij : i ≠ j)
+    (h1 : ipstepAt F M i c c₁)
+    (hiR : ∃ s, c₁.ths.get? i = some (.R, s) ∧ ¬ IsWrong s)
+    (h2 : ipstepAt F M j c₁ c₂)
+    (hj_nw : ∃ pj sj, c₂.ths.get? j = some (pj, sj) ∧ ¬ IsWrong sj) :
+    ∃ c₃, ipstepAt F M j c c₃ ∧ ipstepAt F M i c₃ c₂ := by
+  obtain ⟨pi, si, pi', si', hgeti, hstepi, hthsi⟩ := h1
+  obtain ⟨pj, sj, pj', sj', hgetj, hstepj, hthsj⟩ := h2
+  have hgetj_c : c.ths.get? j = some (pj, sj) := by
+    rw [← hgetj, ipstepAt_get_other ⟨pi, si, pi', si', hgeti, hstepi, hthsi⟩
+      (fun e => hij e.symm)]
+  have hci1 : c₁.ths.get? i = some (pi', si') := by
+    rw [hthsi, get?_set_self (get?_lt hgeti)]
+  -- i ends in phase R, non-wrong
+  obtain ⟨s, hiR_get, hiR_nw⟩ := hiR
+  have hpr : (Effect.R, s) = (pi', si') := Option.some.inj (hiR_get ▸ hci1)
+  have hpiR : pi' = .R := (congrArg Prod.fst hpr).symm
+  have hsi : s = si' := congrArg Prod.snd hpr
+  have hnwi : ¬ IsWrong si' := hsi ▸ hiR_nw
+  -- j non-wrong
+  have hjc2 : c₂.ths.get? j = some (pj', sj') := by
+    rw [hthsj, get?_set_self (get?_lt hgetj)]
+  obtain ⟨pj0, sj0, hj2_get, hj2_nw⟩ := hj_nw
+  have hprj : (pj0, sj0) = (pj', sj') := Option.some.inj (hj2_get ▸ hjc2)
+  have hsj : sj0 = sj' := congrArg Prod.snd hprj
+  have hnwj : ¬ IsWrong sj' := hsj ▸ hj2_nw
+  obtain ⟨σ₃, hj', hi'⟩ := istep_right_comm hval hij hstepi hpiR hnwi hstepj hnwj
+  refine ⟨⟨c.ths.set j (pj', sj'), σ₃⟩, ⟨pj, sj, pj', sj', hgetj_c, hj', rfl⟩,
+    pi, si, pi', si', ?_, hi', ?_⟩
+  · rw [get?_set_other (fun e => hij e.symm)]; exact hgeti
+  · show c₂.ths = (c.ths.set j (pj', sj')).set i (pi', si')
+    rw [hthsj, hthsi, set_set_comm _ _ _ (fun e => hij e.symm)]
+
+/-- **Lemma 8, pool level.**  A left-mover step of thread `i` (from the
+    post-commit phase `N`, non-wrong) commutes to the left of a preceding
+    non-wrong step of a different thread `j`. -/
+theorem ipstep_left_comm {F M} (hval : Valid M) {c c₁ c₂ : IState} {i j : Tid}
+    (hij : i ≠ j)
+    (h1 : ipstepAt F M j c c₁)
+    (hj_nw : ∃ pj sj, c₁.ths.get? j = some (pj, sj) ∧ ¬ IsWrong sj)
+    (h2 : ipstepAt F M i c₁ c₂)
+    (hiN : ∃ s, c₁.ths.get? i = some (.N, s))
+    (hi_nw : ∃ p s, c₂.ths.get? i = some (p, s) ∧ ¬ IsWrong s) :
+    ∃ c₃, ipstepAt F M i c c₃ ∧ ipstepAt F M j c₃ c₂ := by
+  obtain ⟨pj, sj, pj', sj', hgetj, hstepj, hthsj⟩ := h1
+  obtain ⟨pi, si, pi', si', hgeti, hstepi, hthsi⟩ := h2
+  have hgeti_c : c.ths.get? i = some (pi, si) := by
+    rw [← hgeti, ipstepAt_get_other ⟨pj, sj, pj', sj', hgetj, hstepj, hthsj⟩ hij]
+  obtain ⟨s, hiN_get⟩ := hiN
+  have hprN : (Effect.N, s) = (pi, si) := Option.some.inj (hiN_get ▸ hgeti)
+  have hpiN : pi = .N := (congrArg Prod.fst hprN).symm
+  have hcj1 : c₁.ths.get? j = some (pj', sj') := by
+    rw [hthsj, get?_set_self (get?_lt hgetj)]
+  obtain ⟨pj0, sj0, hj1_get, hj1_nw⟩ := hj_nw
+  have hprj : (pj0, sj0) = (pj', sj') := Option.some.inj (hj1_get ▸ hcj1)
+  have hsj : sj0 = sj' := congrArg Prod.snd hprj
+  have hnwj : ¬ IsWrong sj' := hsj ▸ hj1_nw
+  have hci2 : c₂.ths.get? i = some (pi', si') := by
+    rw [hthsi, get?_set_self (get?_lt hgeti)]
+  obtain ⟨pi0, si0, hi2_get, hi2_nw⟩ := hi_nw
+  have hpri : (pi0, si0) = (pi', si') := Option.some.inj (hi2_get ▸ hci2)
+  have hsi : si0 = si' := congrArg Prod.snd hpri
+  have hnwi : ¬ IsWrong si' := hsi ▸ hi2_nw
+  obtain ⟨σ₃, hi', hj'⟩ := istep_left_comm hval hij hstepj hnwj hstepi hpiN hnwi
+  refine ⟨⟨c.ths.set i (pi', si'), σ₃⟩, ⟨pi, si, pi', si', hgeti_c, hi', rfl⟩,
+    pj, sj, pj', sj', ?_, hj', ?_⟩
+  · rw [get?_set_other hij]; exact hgetj
+  · show c₂.ths = (c.ths.set i (pi', si')).set j (pj', sj')
+    rw [hthsi, hthsj, set_set_comm _ _ _ hij]
+
 end MoverRust
