@@ -53,6 +53,22 @@ target, a compiler between them written in Lean, and the **semantic
 preservation theorem** — whatever the source semantics computes, the
 compiled code computes — with an end-to-end kernel-checked example.
 
+## Beyond the book: MoverRust
+
+[`MoverRust/`](MoverRust/) applies the book's techniques to **concurrent**
+program verification: a Lean formalization of **mover logic** (Flanagan &
+Freund, ECOOP 2024) for a small multithreaded Rust subset — procedures,
+global and thread-local state, locks, `cas`, and threads. It contains a
+validated **effect algebra** of movers, an interleaving operational
+semantics, the mover-logic proof system, an instrumented semantics with a
+machine-checked **simulation** and **preservation** theorem, a
+**cooperative soundness** theorem (verified programs never go wrong), the
+**commuting lemmas** that justify reduction, a worked counter/lock example
+whose atomic `add` is **proved to satisfy its specification**, and a
+recursive-descent **parser** from Rust-flavored source to the verified
+AST. Mover logic was built for SMT solvers; here every proof obligation is
+a Lean proposition checked by the kernel — no solver in the trusted base.
+
 ## Conventions
 
 - **De Bruijn indices** are used for binders throughout (introduced in the
