@@ -47,6 +47,14 @@ def upd (σ : Store) (v : Var) (k : Int) : Store :=
     upd σ v k w = σ w := by
   simp [upd, h]
 
+/-- Updates to distinct variables commute. -/
+theorem upd_comm (σ : Store) {v w : Var} (a b : Int) (h : v ≠ w) :
+    upd (upd σ v a) w b = upd (upd σ w b) v a := by
+  funext u
+  simp only [upd]
+  by_cases hv : u = v <;> by_cases hw : u = w <;>
+    simp_all [hv, hw] <;> exact absurd (hv ▸ hw ▸ rfl) h
+
 /-- Expressions over the current thread's locals (globals are accessed
     only through explicit read/write actions, as in the paper's
     compiled examples). -/
@@ -71,6 +79,23 @@ def evalE (t : Tid) (σ : Store) : Exp → Int
   | .modE e₁ e₂ => evalE t σ e₁ % evalE t σ e₂
   | .less e₁ e₂ => if evalE t σ e₁ < evalE t σ e₂ then 1 else 0
   | .eq e₁ e₂ => if evalE t σ e₁ = evalE t σ e₂ then 1 else 0
+
+/-- Expression evaluation depends only on the current thread's locals. -/
+theorem evalE_congr_locals {t : Tid} {σ σ' : Store} (e : Exp)
+    (h : ∀ n, σ (.l t n) = σ' (.l t n)) : evalE t σ e = evalE t σ' e := by
+  induction e <;> simp_all [evalE]
+
+/-- Updating a global leaves every local untouched, so it does not
+    change a thread's expression values. -/
+theorem evalE_upd_g {t : Tid} {σ : Store} (x : Nat) (k : Int) (e : Exp) :
+    evalE t (upd σ (.g x) k) e = evalE t σ e :=
+  evalE_congr_locals e (fun _ => by simp [upd])
+
+/-- Updating another thread's local likewise. -/
+theorem evalE_upd_l_other {t u : Tid} {σ : Store} (r : Nat) (k : Int) (e : Exp)
+    (h : t ≠ u) : evalE t (upd σ (.l u r) k) e = evalE t σ e :=
+  evalE_congr_locals e (fun n => by
+    simp only [upd]; rw [if_neg]; intro hc; cases hc; exact h rfl)
 
 /-- Primitive actions.  Each denotes a relation on stores, indexed by
     the executing thread (MLL's `A ⊆ Tid × Store × Store`).  A lock
