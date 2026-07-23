@@ -229,6 +229,13 @@ theorem seq_eq_R_imp_le : ∀ p m : Effect, m ≠ .Y → p.seq m = .R → m ≤ 
 /-- A non-error composition had a non-error (hence `⊑ N`) argument. -/
 theorem arg_le_N_of_seq_ne_E : ∀ p m : Effect, p.seq m ≠ .E → m ≤ .N := by decide
 
+/-- From post-commit `N`, composing an effect `⊑ L` stays non-error. -/
+theorem N_seq_le_L_ne_E : ∀ e : Effect, e ≤ .L → Effect.N.seq e ≠ .E := by decide
+
+/-- From post-commit `N`, composing an effect `⊑ L` yields `N` — provided
+    the effect is not the yield `Y` (which actions never are). -/
+theorem N_seq_le_L_eq_N : ∀ e : Effect, e ≤ .L → e ≠ .Y → Effect.N.seq e = .N := by decide
+
 /-- Composite bound used in the seq-congruence preservation case:
     from `p'; e₁' ⊑ p; e₁` and `e₁; e₂ ⊑ e` conclude
     `p'; (e₁'; e₂) ⊑ p; e`. -/
