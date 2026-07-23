@@ -180,5 +180,86 @@ theorem left_comm_10 {F M} (hval : Valid M) {c c₁ c₂ : Cfg}
     p0', s0', by simpa [th, tid] using hj', ?_⟩
   exact ⟨hp0e.trans hp0, hs0e.trans hs0, hp1, hs1⟩
 
+/-! ### The diamond and its iteration (for merging a post-commit tail)
+
+These lift Lemma 10 to the two-thread configuration and iterate it, so
+that thread 0's post-commit completion (a run of left-mover steps) can
+be merged into a concurrent run of thread 1 — exactly the merge claim (2)
+performs with Lemma 9's termination trace. -/
+
+/-- Lemma 10 at the two-thread level: with thread 0 post-commit, two
+    steps from a common `c` (thread 0 left-mover, thread 1 anything)
+    close a diamond. -/
+theorem cfg_diamond {F M} (hval : Valid M) {c c₀ c₁ : Cfg} (hN : c.p0 = .N)
+    (h0 : Step F M false c c₀) (hnw0 : ¬ IsWrong c₀.s0)
+    (h1 : Step F M true c c₁) (hnw1 : ¬ IsWrong c₁.s1) :
+    ∃ c', Step F M false c₁ c' ∧ Step F M true c₀ c' ∧
+      c'.s0 = c₀.s0 ∧ c'.s1 = c₁.s1 ∧ c'.p0 = c₀.p0 := by
+  obtain ⟨p0', s0', hi0, hp0, hs0, hp1e0, hs1e0⟩ := step_false h0
+  obtain ⟨p1', s1', hi1, hp1, hs1, hp0e1, hs0e1⟩ := step_true h1
+  have hnwi : ¬ IsWrong s1' := hs1 ▸ hnw1
+  have hnwj : ¬ IsWrong s0' := hs0 ▸ hnw0
+  -- diamond with j = 0 (post-commit), i = 1
+  obtain ⟨σ₃, hj', hi'⟩ :=
+    istep_diamond hval (by decide) hi1 hnwi hi0 hN hnwj
+  refine ⟨{ c₁ with p0 := p0', s0 := s0', st := σ₃ }, ?_, ?_, ?_, ?_, ?_⟩
+  · refine ⟨p0', s0', ?_, ?_⟩
+    · simp only [th, tid]; rw [hp0e1, hs0e1]; exact hj'
+    · simp [cond_false]
+  · refine ⟨p1', s1', ?_, ?_⟩
+    · simp only [th, tid]
+      rw [(⟨hp1e0, hs1e0⟩ : c₀.p1 = c.p1 ∧ c₀.s1 = c.s1).1,
+        (⟨hp1e0, hs1e0⟩ : c₀.p1 = c.p1 ∧ c₀.s1 = c.s1).2]; exact hi'
+    · simp only [cond_true]; exact ⟨hp1, hs1, hp0.symm, hs0.symm⟩
+  · show s0' = c₀.s0; exact hs0.symm
+  · rfl
+  · show p0' = c₀.p0; exact hp0.symm
+
+/-- A thread-1 step leaves thread 0's `(phase, statement)` untouched. -/
+theorem step_true_pres0 {F M c c'} (h : Step F M true c c') :
+    c'.p0 = c.p0 ∧ c'.s0 = c.s0 := by
+  obtain ⟨_, _, _, _, _, hp0e, hs0e⟩ := step_true h; exact ⟨hp0e, hs0e⟩
+
+/-- `L0` — one post-commit left-mover step of thread 0 (phase `N`,
+    non-wrong result); `T1` — one non-wrong step of thread 1. -/
+def L0 (F : FnTable) (M : MSpec) (a b : Cfg) : Prop :=
+  Step F M false a b ∧ a.p0 = .N ∧ ¬ IsWrong b.s0
+def T1 (F : FnTable) (M : MSpec) (a b : Cfg) : Prop :=
+  Step F M true a b ∧ ¬ IsWrong b.s1
+
+/-- Diamond of one thread-0 post-commit step against a whole thread-1
+    run. -/
+theorem diamond_0_multi1 {F M} (hval : Valid M) {c cB : Cfg}
+    (h1s : Multi (T1 F M) c cB) :
+    ∀ c₀, L0 F M c c₀ → ∃ c', Multi (T1 F M) c₀ c' ∧ L0 F M cB c' := by
+  induction h1s with
+  | refl => intro c₀ h0; exact ⟨c₀, .refl _, h0⟩
+  | @head c c₁ cB ht1 _ ih =>
+      intro c₀ h0
+      obtain ⟨hstep1, hnw1⟩ := ht1
+      obtain ⟨hstep0, hN, hnw0⟩ := h0
+      obtain ⟨c'', hs0', hs1', hs0eq, hs1eq, _⟩ :=
+        cfg_diamond hval hN hstep0 hnw0 hstep1 hnw1
+      have hL0' : L0 F M c₁ c'' :=
+        ⟨hs0', (step_true_pres0 hstep1).1.trans hN, hs0eq ▸ hnw0⟩
+      obtain ⟨c', hmulti, hLB⟩ := ih c'' hL0'
+      exact ⟨c', .head ⟨hs1', hs1eq ▸ hnw1⟩ hmulti, hLB⟩
+
+/-- **Lemma 11 (Iterative Diamond).**  Thread 0's post-commit run and a
+    concurrent thread-1 run, both from `c`, merge to a common
+    configuration — the merge that folds Lemma 9's termination trace into
+    the main trace. -/
+theorem iterated_diamond {F M} (hval : Valid M) {c cA : Cfg}
+    (h0s : Multi (L0 F M) c cA) :
+    ∀ cB, Multi (T1 F M) c cB →
+      ∃ c', Multi (T1 F M) cA c' ∧ Multi (L0 F M) cB c' := by
+  induction h0s with
+  | refl => intro cB h1s; exact ⟨cB, h1s, .refl _⟩
+  | @head c c₁ cA hl0 _ ih =>
+      intro cB h1s
+      obtain ⟨c'', hmultiT, hL0B⟩ := diamond_0_multi1 hval h1s c₁ hl0
+      obtain ⟨c', hT1A, hL0'⟩ := ih c'' hmultiT
+      exact ⟨c', hT1A, .head hL0B hL0'⟩
+
 end Cfg
 end MoverRust
