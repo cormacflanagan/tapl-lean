@@ -45,7 +45,8 @@ rely assumption applied only at `yield`s.
 | [`Instrumented.lean`](Instrumented.lean) | the phase-instrumented semantics (Fig. 10), preemptive and non-preemptive schedulers, and the one-step **Simulation** theorem |
 | [`Meta.lean`](Meta.lean) | inversion lemmas for the judgment, and the **Prefix lemma** (atomic bodies splice into any context) |
 | [`Preservation.lean`](Preservation.lean) | **Preservation** (Thm 5), *verified-states-are-not-wrong* (Thm 6), and **cooperative soundness** |
-| [`Reduction.lean`](Reduction.lean) | multi-step **Simulation** (Thm 3), and the **commuting lemmas** (right/left/diamond) derived from validity |
+| [`Reduction.lean`](Reduction.lean) | multi-step **Simulation** (Thm 3), and the action-level commuting lemmas derived from validity |
+| [`Theorem4.lean`](Theorem4.lean) | the **step trichotomy** and the pool-level **commuting lemmas** (Lemmas 7, 8, 10) — the technical core of the Reduction Theorem |
 | [`Examples.lean`](Examples.lean) | the counter/lock library: `add` **satisfies its spec**, plus the mover-spec **validity mechanism** |
 | [`Parser.lean`](Parser.lean) | a recursive-descent parser from Rust-flavored source to the verified AST |
 
@@ -157,27 +158,40 @@ all statement forms — the mover effect of each action composes onto the
 phase and the invariant is re-established, using the **Prefix lemma**
 (`Meta.lean`) at atomic calls and yield **stabilization** at yields.
 
-### The reduction principle, and what is scoped
+### The Reduction Theorem (Theorem 4): commuting lemmas
 
-That validity is exactly the commutation reduction needs is proved
-directly in [`Reduction.lean`](Reduction.lean):
+The heart of Theorem 4 is that the four validity conditions are exactly
+the commutations that let a preemptive trace be rearranged into a
+cooperative one. [`Theorem4.lean`](Theorem4.lean) mechanizes these
+**commuting lemmas** — Lemmas 7, 8, and 10 of the paper's Appendix B.1 —
+at the level of the real pool step relation `ipstep`, all fully proved:
 
 ```lean
-theorem right_commute (hval : Valid M) (h : t ≠ u)
-    (h1 : M A₁ t σ ≤ .R) (hd1 : den A₁ t σ σ')
-    (h2 : M A₂ u σ' ≤ .N) (hd2 : den A₂ u σ' σ'') :
-    ∃ σ''', den A₂ u σ σ''' ∧ den A₁ t σ''' σ''       -- and left_commute, diamond_left
+-- Lemma 7 (Right Commutativity): a right-mover step of thread i (ending
+-- in the pre-commit phase R) commutes right past a following step of j.
+theorem ipstep_right_comm (hval : Valid M) (hij : i ≠ j)
+    (h1 : ipstepAt F M i c c₁) (hiR : … i ends in phase R, non-wrong …)
+    (h2 : ipstepAt F M j c₁ c₂) (hj_nw : …) :
+    ∃ c₃, ipstepAt F M j c c₃ ∧ ipstepAt F M i c₃ c₂
+
+-- Lemma 8 (Left Commutativity) and Lemma 10 (Diamond) likewise.
+theorem ipstep_left_comm …      theorem istep_diamond …
 ```
 
-The one part **not** mechanized is the global trace-rearrangement of the
-paper's Theorem 4 (Reduction), which threads these local commutations
-through an *arbitrary* preemptive interleaving to show the preemptive and
-cooperative instrumented semantics agree. That argument (the paper's
-longest, Appendix B.1) would connect `cooperative_soundness` to full
-preemptive soundness. Everything it is built from — simulation, the
-commuting lemmas, preservation, post-commit reasoning — is proved here;
-the combinatorial rearrangement itself is left as future work, and this is
-the only gap.
+They rest on a **step trichotomy** (`istep_char`): every instrumented
+step either performs an action (store moving by `den A`, phase by
+`p ; M A`, and *reproducible at any store*), steps into `wrong`, or is a
+store-independent silent step. The action–action cases invoke the
+`Valid` conditions; the silent cases commute because they do not touch
+the store.
+
+**What remains for the full theorem.**  On top of these commuting lemmas
+the paper builds Lemma 9 (Post-Commit Termination — a progress argument
+for well-typed post-commit code) and the global trace induction proving
+`Π →* Π' ⇒ (Π,Π') ∈ Post*·Pre*`, from which the going-wrong statement —
+and hence full preemptive soundness via `cooperative_soundness` —
+follows. That assembly is a substantial further development; the reusable
+mover-commutation core it rests on is mechanized here.
 
 ## The worked example (`Examples.lean`)
 

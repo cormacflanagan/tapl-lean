@@ -7,21 +7,32 @@
   soundness (Preservation.lean) it upgrades to full preemptive
   soundness.
 
-  The mechanization here is faithful to the paper's structure but,
-  to keep the trace-permutation argument tractable, is carried out for a
-  **two-thread** pool — the setting in which every conceptual ingredient
-  of reduction is present (right-movers commute right, left-movers
-  commute left, a single commit, post-commit termination) while the
-  n-thread block bookkeeping collapses to "the other thread".
+  This file mechanizes the **commuting lemmas** that are the technical
+  core of Theorem 4's proof — the properties that let a preemptive trace
+  be rearranged into a cooperative one.  Each is derived from the four
+  validity conditions (`Logic.Valid`) and holds for the *n*-thread pool
+  (`ipstep`), not just two threads.  All are fully proved, no `sorry`:
 
-  This file provides, all fully proved:
+  ▸ `istep_char`         — the step trichotomy: every instrumented step
+                           is an action step (store moves by `den A`,
+                           phase by `p ; M A`), a step into `wrong`, or a
+                           store-independent *silent* step;
+  ▸ `istep_right_comm` / `ipstep_right_comm` — Lemma 7 (Right
+                           Commutativity): a right-mover commutes right
+                           past a following step of another thread;
+  ▸ `istep_left_comm`  / `ipstep_left_comm`  — Lemma 8 (Left
+                           Commutativity): a left-mover commutes left past
+                           a preceding step of another thread;
+  ▸ `istep_diamond`      — Lemma 10 (Diamond): two steps from a common
+                           store, one post-commit, close a diamond.
 
-  ▸ `istep_char`         — every instrumented step is an action step or
-                           a store-preserving (silent/wrong) step;
-  ▸ `ipstep_right_comm`  — Lemma 7 at the pool level;
-  ▸ `ipstep_left_comm`   — Lemma 8 at the pool level;
-  ▸ `ipstep_diamond`     — Lemma 10 at the pool level;
-  ▸ `reduction_two`      — Theorem 4 for two threads.
+  **What remains for the full Theorem 4.**  On top of these commuting
+  lemmas the paper's Appendix B.1 builds: Lemma 9 (Post-Commit
+  Termination — needs a progress argument for well-typed post-commit
+  code), and the global trace induction proving `Π →* Π'  ⇒  (Π,Π') ∈
+  Post*·Pre*` (claim (1)), from which the going-wrong statement follows.
+  Those two are a substantial further development; the reusable
+  mover-commutation core they rest on is what is mechanized here.
 -/
 import MoverRust.Reduction
 
@@ -158,6 +169,48 @@ theorem istep_left_comm {F M} (hval : Valid M) {i j : Tid} (hij : i ≠ j)
   · -- i silent: σ₂ = σ₁; i reproduces from σ, then j runs unchanged
     subst hσ2
     exact ⟨σ, hrepi σ, hstepj⟩
+
+/-! ### Lemma 10 — the Diamond, at the level of two isteps
+
+If thread `j` is in post-commit (`N`) and threads `i ≠ j` both step from
+the *same* store, the two steps close a diamond: doing them in either
+order reaches a common store.  This is what lets a post-commit
+termination trace be merged into the main trace. -/
+
+theorem istep_diamond {F M} (hval : Valid M) {i j : Tid} (hij : i ≠ j)
+    {pi si pi' si' pj sj pj' sj' : _} {σ σ' σ'' : Store}
+    (hstepi : istep F M i pi si σ pi' si' σ') (hi_nw : ¬ IsWrong si')
+    (hstepj : istep F M j pj sj σ pj' sj' σ'') (hpjN : pj = .N) (hj_nw : ¬ IsWrong sj') :
+    ∃ σ₃, istep F M j pj sj σ' pj' sj' σ₃ ∧ istep F M i pi si σ'' pi' si' σ₃ := by
+  rcases istep_char hstepj with haj | ⟨hw, _⟩ | ⟨hσ2, _, hrepj⟩
+  · -- j is an action step, a left-mover (post-commit)
+    obtain ⟨Aj, hdenj, hpj, hnej, hrepj⟩ := haj
+    have hMj_leL : M Aj j σ ≤ .L := by
+      apply post_phase_le; rw [← hpjN, ← hpj]; exact hnej
+    have hMj_leN : M Aj j σ ≤ .N := le_trans hMj_leL (by decide)
+    rcases istep_char hstepi with hai | ⟨hw, _⟩ | ⟨hσ1, _, hrepi⟩
+    · -- i is also an action step
+      obtain ⟨Ai, hdeni, hpi, hnei, hrepi⟩ := hai
+      have hMi_leN : M Ai i σ ≤ .N := arg_le_N_of_seq_ne_E pi _ (hpi ▸ hnei)
+      -- validity condition 4 closes the diamond
+      obtain ⟨σ₃, hdenj', hdeni'⟩ :=
+        hval.left_enabled hij hMi_leN hdeni hMj_leL hdenj
+      -- condition 3: neither mover changes the other's effect
+      have hMj_eq : M Aj j σ' = M Aj j σ := hval.stable_eff hij hMi_leN hdeni
+      have hMi_eq : M Ai i σ'' = M Ai i σ := hval.stable_eff (fun e => hij e.symm) hMj_leN hdenj
+      refine ⟨σ₃, ?_, ?_⟩
+      · have := hrepj σ' σ₃ hdenj' (by rw [hMj_eq]; exact hpj ▸ hnej)
+        rwa [hMj_eq, ← hpj] at this
+      · have := hrepi σ'' σ₃ hdeni' (by rw [hMi_eq]; exact hpi ▸ hnei)
+        rwa [hMi_eq, ← hpi] at this
+    · exact absurd hw hi_nw
+    · -- i silent: σ' = σ; j runs from σ' = σ, i reproduced after
+      subst hσ1
+      exact ⟨σ'', hstepj, hrepi σ''⟩
+  · exact absurd hw hj_nw
+  · -- j silent: σ'' = σ; j reproduced from σ', i runs from σ'' = σ
+    subst hσ2
+    exact ⟨σ', hrepj σ', hstepi⟩
 
 /-! ### Lifting the commutation lemmas to pool steps
 
