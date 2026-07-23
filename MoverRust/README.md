@@ -48,7 +48,7 @@ rely assumption applied only at `yield`s.
 | [`Reduction.lean`](Reduction.lean) | multi-step **Simulation** (Thm 3), and the action-level commuting lemmas derived from validity |
 | [`Theorem4.lean`](Theorem4.lean) | the **step trichotomy** and the pool-level **commuting lemmas** (Lemmas 7, 8, 10) — the technical core of the Reduction Theorem |
 | [`Postcommit.lean`](Postcommit.lean) | **Lemma 9** (Post-Commit Termination): a committed, call-free thread runs to a park (progress + preservation on a structural metric) |
-| [`Theorem4Two.lean`](Theorem4Two.lean) | a concrete **two-thread configuration** and Lemmas 7, 8, 10, **11** (right/left commutation, diamond, **iterated diamond**) at that level |
+| [`Theorem4Two.lean`](Theorem4Two.lean) | a concrete **two-thread configuration**; Lemmas 7, 8, 10, 11 at that level; and the two multi-step engines (`iterated_diamond`, `iterated_rcomm`) that claim (1)/(2) drive |
 | [`Examples.lean`](Examples.lean) | the counter/lock library: `add` **satisfies its spec**, plus the mover-spec **validity mechanism** |
 | [`Parser.lean`](Parser.lean) | a recursive-descent parser from Rust-flavored source to the verified AST |
 
@@ -212,14 +212,19 @@ paper's Appendix B.1 is now proved:
 | 10 | Diamond | `Theorem4.lean`, `Theorem4Two.lean` |
 | 11 | Iterative diamond | `Theorem4Two.lean` |
 
-**What remains** is the paper's *assembly* of these into Theorem 4: the
-two trace inductions — claim (1), which decomposes a preemptive trace as
-`Post*·Pre*` (maintained step-by-step, each new step absorbed by the four
-commutations), and claim (2), which completes the last incomplete
-post-commit block with Lemmas 9 and 11 — together with the two-thread
-typing invariant `⊢ Π` that claim (2) carries to invoke Lemma 9. That
-assembly connects to full preemptive soundness via
-`cooperative_soundness`.
+The two **multi-step engines** the assembly drives are also proved
+(`Theorem4Two.lean`): `iterated_diamond` (a post-commit completion merges
+into a concurrent run — the Lemma-9-trace merge of claim (2)) and
+`iterated_rcomm` (a whole pre-commit run defers past the other thread —
+the Pre-block right-commutation of claim (1)).
+
+**What remains** is the paper's *assembly*: the two trace inductions —
+claim (1), which decomposes a preemptive trace as `Post*·Pre*`
+(maintained step-by-step, each new step absorbed via these engines), and
+claim (2), which completes the last incomplete post-commit block —
+together with the two-thread typing invariant `⊢ Π` that claim (2)
+carries to invoke Lemma 9. That assembly connects to full preemptive
+soundness via `cooperative_soundness`.
 
 ## The worked example (`Examples.lean`)
 
