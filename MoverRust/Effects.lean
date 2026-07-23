@@ -194,6 +194,56 @@ theorem seq_ne_E_mono' : ∀ a a' b b' : Effect,
 theorem seq_ne_E_mono {a a' b b' : Effect} (h1 : a ≤ a') (h2 : b ≤ b')
     (h3 : seq a' b' ≠ .E) : seq a b ≠ .E := seq_ne_E_mono' a a' b b' h1 h2 h3
 
+theorem le_ne_E : ∀ a b : Effect, a ≤ b → b ≠ .E → a ≠ .E := by decide
+
+instance : Trans (· ≤ · : Effect → Effect → Prop)
+    (· ≤ · : Effect → Effect → Prop) (· ≤ · : Effect → Effect → Prop) :=
+  ⟨le_trans⟩
+
+/-- Reachable phases are `R` or `N`; every non-error future keeps `R` below. -/
+theorem phase_R_le : ∀ p e : Effect, (p = .R ∨ p = .N) → p.seq e ≠ .E →
+    .R ≤ p.seq e := by decide
+
+/-- Phases stay in `{R, N}` after composing a non-yield, non-error effect. -/
+theorem phase_step : ∀ p m : Effect, (p = .R ∨ p = .N) → m ≠ .Y →
+    p.seq m ≠ .E → (p.seq m = .R ∨ p.seq m = .N) := by decide
+
+theorem seq_seq_ne_E_left : ∀ p e₁ e₂ : Effect,
+    p.seq (e₁.seq e₂) ≠ .E → p.seq e₁ ≠ .E := by decide
+
+/-- Effect inequality for one unfolding of [M-while] into [M-if]:
+    `(m₁;(e₁;eW)) ⊔ (m₂;B) ⊑ eW` where `eW = (m₁;e₁)*;m₂`, given the
+    rule's side condition `eW ̸⊑ L`. -/
+theorem wloop_unfold_le : ∀ m₁ e₁ m₂ : Effect,
+    ¬ (((m₁.seq e₁).star.seq m₂) ≤ .L) →
+    ((m₁.seq (e₁.seq ((m₁.seq e₁).star.seq m₂))).join (m₂.seq .B)) ≤
+      ((m₁.seq e₁).star.seq m₂) := by decide
+
+/-- Fresh threads (phase `R`) with non-error effects are not stuck. -/
+theorem R_seq_ne_E : ∀ e : Effect, e ≠ .E → Effect.R.seq e ≠ .E := by decide
+
+/-- Composite bound used in the seq-congruence preservation case:
+    from `p'; e₁' ⊑ p; e₁` and `e₁; e₂ ⊑ e` conclude
+    `p'; (e₁'; e₂) ⊑ p; e`. -/
+theorem seq_bound_lemma {p' e₁' p e₁ : Effect} (e₂ : Effect) {e : Effect}
+    (hb : p'.seq e₁' ≤ p.seq e₁) (hle : e₁.seq e₂ ≤ e) :
+    p'.seq (e₁'.seq e₂) ≤ p.seq e := by
+  rw [← seq_assoc]
+  exact le_trans (seq_mono_left _ hb)
+    (by rw [seq_assoc]; exact seq_mono_right _ hle)
+
+/-- Composite bound for a conditional branch: from `mM ⊑ m` and
+    `m; eb ⊑ e` conclude `(p; mM); eb ⊑ p; e`. -/
+theorem branch_bound {p mM m eb e : Effect} (h1 : mM ≤ m) (h2 : m.seq eb ≤ e) :
+    (p.seq mM).seq eb ≤ p.seq e := by
+  rw [seq_assoc]
+  exact seq_mono_right _ (le_trans (seq_mono_left _ h1) h2)
+
+theorem le_seq_of_B_le' : ∀ e₁ e₂ : Effect, .B ≤ e₁ → e₂ ≤ e₁.seq e₂ := by
+  decide
+theorem le_seq_of_B_le {e₁ : Effect} (e₂ : Effect) (h : .B ≤ e₁) :
+    e₂ ≤ e₁.seq e₂ := le_seq_of_B_le' e₁ e₂ h
+
 end Effect
 
 end MoverRust
