@@ -48,6 +48,7 @@ rely assumption applied only at `yield`s.
 | [`Reduction.lean`](Reduction.lean) | multi-step **Simulation** (Thm 3), and the action-level commuting lemmas derived from validity |
 | [`Theorem4.lean`](Theorem4.lean) | the **step trichotomy** and the pool-level **commuting lemmas** (Lemmas 7, 8, 10) — the technical core of the Reduction Theorem |
 | [`Postcommit.lean`](Postcommit.lean) | **Lemma 9** (Post-Commit Termination): a committed, call-free thread runs to a park (progress + preservation on a structural metric) |
+| [`Theorem4Two.lean`](Theorem4Two.lean) | a concrete **two-thread configuration** and the four commutation lemmas (Lemmas 7, 8) repackaged as its step-relation swap rules |
 | [`Examples.lean`](Examples.lean) | the counter/lock library: `add` **satisfies its spec**, plus the mover-spec **validity mechanism** |
 | [`Parser.lean`](Parser.lean) | a recursive-descent parser from Rust-flavored source to the verified AST |
 
