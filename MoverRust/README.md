@@ -48,7 +48,7 @@ rely assumption applied only at `yield`s.
 | [`Reduction.lean`](Reduction.lean) | multi-step **Simulation** (Thm 3), and the action-level commuting lemmas derived from validity |
 | [`Theorem4.lean`](Theorem4.lean) | the **step trichotomy** and the pool-level **commuting lemmas** (Lemmas 7, 8, 10) — the technical core of the Reduction Theorem |
 | [`Postcommit.lean`](Postcommit.lean) | **Lemma 9** (Post-Commit Termination): a committed, call-free thread runs to a park (progress + preservation on a structural metric) |
-| [`Theorem4Two.lean`](Theorem4Two.lean) | a concrete **two-thread configuration** and the four commutation lemmas (Lemmas 7, 8) repackaged as its step-relation swap rules |
+| [`Theorem4Two.lean`](Theorem4Two.lean) | a concrete **two-thread configuration** and Lemmas 7, 8, 10, **11** (right/left commutation, diamond, **iterated diamond**) at that level |
 | [`Examples.lean`](Examples.lean) | the counter/lock library: `add` **satisfies its spec**, plus the mover-spec **validity mechanism** |
 | [`Parser.lean`](Parser.lean) | a recursive-descent parser from Rust-flavored source to the verified AST |
 
@@ -201,15 +201,25 @@ theorem post_terminates (hval : Valid M) (hD : DeclsOK D M) :
       ∃ s' σ', Multi (IStepT D.fns M t) (.N, s, σ) (.N, s', σ') ∧ Yielding s'
 ```
 
-**What remains for the full theorem.**  With Lemmas 7–10 (commutation)
-and Lemma 9 (post-commit termination) all mechanized, the paper assembles
-Theorem 4 by a global trace induction proving `Π →* Π' ⇒ (Π,Π') ∈
-Post*·Pre*` — a bubble-sort of the preemptive trace into cooperative
-blocks using the four commutations as swap rules — then discharges the
-last incomplete block with Lemma 9. That trace-combinatorial assembly,
-which would connect to full preemptive soundness via
-`cooperative_soundness`, is the remaining step; every lemma it rests on
-is mechanized here.
+**The full lemma toolkit is mechanized.**  Every supporting lemma of the
+paper's Appendix B.1 is now proved:
+
+| Lemma | Statement | File |
+|---|---|---|
+| 7 | Right commutativity | `Theorem4.lean`, `Theorem4Two.lean` |
+| 8 | Left commutativity | `Theorem4.lean`, `Theorem4Two.lean` |
+| 9 | Post-commit termination | `Postcommit.lean` |
+| 10 | Diamond | `Theorem4.lean`, `Theorem4Two.lean` |
+| 11 | Iterative diamond | `Theorem4Two.lean` |
+
+**What remains** is the paper's *assembly* of these into Theorem 4: the
+two trace inductions — claim (1), which decomposes a preemptive trace as
+`Post*·Pre*` (maintained step-by-step, each new step absorbed by the four
+commutations), and claim (2), which completes the last incomplete
+post-commit block with Lemmas 9 and 11 — together with the two-thread
+typing invariant `⊢ Π` that claim (2) carries to invoke Lemma 9. That
+assembly connects to full preemptive soundness via
+`cooperative_soundness`.
 
 ## The worked example (`Examples.lean`)
 

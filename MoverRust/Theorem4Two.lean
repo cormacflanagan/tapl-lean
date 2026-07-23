@@ -17,12 +17,17 @@
   Provided here, all fully proved:
   ▸ `Cfg`, `Step`, `CStep`, `NStep`, `Wrong`, and step destructors;
   ▸ `right_comm_01` / `right_comm_10` — Lemma 7 at the two-thread level;
-  ▸ `left_comm_01`  / `left_comm_10`  — Lemma 8 at the two-thread level.
+  ▸ `left_comm_01`  / `left_comm_10`  — Lemma 8 at the two-thread level;
+  ▸ `cfg_diamond`      — Lemma 10 at the two-thread level;
+  ▸ `iterated_diamond` — Lemma 11 (Iterative Diamond), by which thread
+    0's post-commit completion merges into a concurrent thread-1 run.
 
-  What remains for the full theorem is the trace induction that threads
-  these swaps through an arbitrary interleaving (paper claim (1)), plus
-  the post-commit-completion step (Lemma 9 of `Postcommit.lean` + an
-  iterated diamond).  See the repository README.
+  With Lemma 9 (`Postcommit.lean`) this is the *complete lemma toolkit*
+  of the paper's Appendix B.1.  What remains for the full theorem is the
+  two trace inductions built on top of them: claim (1), decomposing a
+  preemptive trace as `Post*·Pre*`, and claim (2), completing the last
+  incomplete post-commit block — plus the two-thread typing invariant
+  (`⊢ Π`) that claim (2) carries to invoke Lemma 9.  See the README.
 -/
 import MoverRust.Postcommit
 
